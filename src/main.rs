@@ -1,5 +1,9 @@
 use std::rc::Rc;
 
+trait ToValue {
+    fn as_value(&self) -> Value;
+}
+
 #[derive(Clone, Debug)]
 enum Value {
     L(Rc<Lambda>),
@@ -12,10 +16,21 @@ struct Index {
     pub nth: usize,
 }
 
+impl ToValue for Index {
+    fn as_value(&self) -> Value {
+        Value::I(*self)
+    }
+}
+
 #[derive(Clone, Debug)]
 struct Beta {
     pub to_apply: Value,
     pub value: Value,
+}
+impl ToValue for Beta {
+    fn as_value(&self) -> Value {
+        Value::B(self.clone().into())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -23,7 +38,13 @@ struct Lambda {
     pub value: Value,
 }
 
-fn evaluate(v: Value, curried: &Vec<Rc<Lambda>>) -> Rc<Lambda> {
+impl ToValue for Lambda {
+    fn as_value(&self) -> Value {
+        Value::L(self.clone().into())
+    }
+}
+
+fn to_lambda(v: Value, curried: &Vec<Rc<Lambda>>) -> Rc<Lambda> {
     println!("{curried:?}");
     match v {
         Value::L(a) => a,
@@ -34,38 +55,34 @@ fn evaluate(v: Value, curried: &Vec<Rc<Lambda>>) -> Rc<Lambda> {
 
 fn reduce(b: Rc<Beta>, curried: &Vec<Rc<Lambda>>) -> Rc<Lambda> {
     // to perform a beta reduction, we need to make sure the values are lambdas
-    let arg = evaluate(b.value.clone(), curried);
+    let arg = to_lambda(b.value.clone(), curried);
     println!("{arg:?}");
     let mut new = Vec::new();
     new.push(arg);
-    evaluate(b.to_apply.clone(), &new)
+    to_lambda(b.to_apply.clone(), &new)
 }
 
 fn main() {
     let identity: Lambda = Lambda {
-        value: Value::I(Index { nth: 0 }),
+        value: Index { nth: 0 }.as_value(),
     };
     let truth = Lambda {
-        value: Value::L(
-            Lambda {
-                value: Value::I(Index { nth: 1 }),
-            }
-            .into(),
-        ),
+        value: Lambda {
+            value: Index { nth: 1 }.as_value(),
+        }
+        .as_value(),
     };
     let p1 = Beta {
-        to_apply: Value::L(identity.clone().into()),
-        value: Value::L(truth.clone().into()),
+        to_apply: identity.as_value(),
+        value: truth.as_value(),
     };
     let p2 = Beta {
-        to_apply: Value::B(
-            Beta {
-                to_apply: Value::L(truth.clone().into()),
-                value: Value::L(identity.clone().into()),
-            }
-            .into(),
-        ),
-        value: Value::L(truth.clone().into()),
+        to_apply: Beta {
+            to_apply: truth.as_value(),
+            value: identity.as_value(),
+        }
+        .as_value(),
+        value: truth.as_value(),
     };
     let mut a = Vec::new();
     let v = reduce(p1.into(), &mut a);
