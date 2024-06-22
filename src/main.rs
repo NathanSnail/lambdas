@@ -62,6 +62,31 @@ fn reduce(b: Rc<Beta>, curried: &Vec<Rc<Lambda>>) -> Rc<Lambda> {
     to_lambda(b.to_apply.clone(), &new)
 }
 
+// TODO: i have realised that our lambda model is actually wrong:
+// given the expression identity(false) we can see it has lambdas
+// beta (\1, \\2) : true = \\1, false = \\2
+// however it would make more sense to consider it as if we were using alpha conversion
+// beta(\a: a, \b: \c: b)
+// so in order to avoid alpha conversion and be number we can automatically de index it
+// in order to do this it makes sense to traverse the lambdas and store a queue of names
+// \1 \\2
+// see first lambda, add a to queue in index 1,
+// \a: 1 \\2
+// see 1, we perform the alpha conversion 1 -> a
+// \a: a \\2
+// see closing of first lambda, pop a
+// see outer false lambda, add b to queue index 1
+// \a: a \b: \2
+// see inner false lambda, add c to queue index 1, now b is index 2
+// \a: a \b: \c: 2
+// see 2, we perform the alpha conversion 2 -> b
+// \a: a \b: \c: b
+// see end, pop queue, repeat
+// now the lambdas should be trivial to evaluate, just store the names in a map
+fn fixed_lambda() {
+    todo!();
+}
+
 fn main() {
     let identity: Lambda = Lambda {
         value: Index { nth: 0 }.as_value(),
